@@ -1,0 +1,25 @@
+{
+  "name": "x402-test-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight x402 test client — signs EIP-3009, Permit2, and ERC-7710 (via EIP-7702 self-upgrade). No Fireblocks required.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "whoami": "ts-node src/whoami.ts"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "canonicalize": "^2.1.0",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
