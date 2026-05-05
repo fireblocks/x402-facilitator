@@ -1,0 +1,31 @@
+{
+  "name": "@x402/express",
+  "version": "0.1.0",
+  "description": "Express middleware for the x402 payment protocol. Returns 402 with a quote, verifies + settles via a configured facilitator.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "x402",
+    "express",
+    "middleware",
+    "payment"
+  ],
+  "license": "ISC",
+  "peerDependencies": {
+    "express": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.11",
+    "express": "^5.2.1",
+    "typescript": "^5.9.3"
+  }
+}

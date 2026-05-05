@@ -1,0 +1,62 @@
+{
+  "name": "fireblocks-x402-facilitator",
+  "version": "1.0.0",
+  "description": "x402 payment facilitator — Fireblocks-backed settlement, pluggable payment store, CLI-managed configuration.",
+  "main": "dist/index.js",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "bin": {
+    "x402": "dist/cli/index.js"
+  },
+  "scripts": {
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev:with-example": "concurrently -k -p \"{name}\" -c \"magenta,blue\" \"npm:dev\" \"npm:dev:example-merchant\"",
+    "dev:example-merchant": "cd examples/merchant && npm run dev",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "cli": "ts-node src/cli/index.ts",
+    "setup": "ts-node scripts/setup.ts",
+    "setup:admin-token": "ts-node scripts/setup-admin-token.ts",
+    "setup:migrate": "ts-node scripts/setup-migrate.ts",
+    "e2e": "ts-node scripts/e2e.ts",
+    "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "x402",
+    "payment",
+    "fireblocks",
+    "usdc",
+    "base"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "canonicalize": "^2.1.0",
+    "commander": "^12.1.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
+    "express": "^5.2.1",
+    "fireblocks-sdk": "^5.35.0",
+    "helmet": "^8.1.0",
+    "jose": "^6.2.2",
+    "kysely": "^0.27.4",
+    "pg": "^8.13.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.11",
+    "@types/pg": "^8.11.10",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
