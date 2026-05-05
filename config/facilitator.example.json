@@ -1,0 +1,65 @@
+{
+  "tenant_id": "default",
+  "default_configuration_id": "default",
+  "assets": [
+    {
+      "asset_id": "USDC_BASECHAIN_ETH_TEST5_8SH8",
+      "blockchain_id": "0318d40f-7709-4f10-b980-11f3abaf31ac",
+      "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "decimals": 6,
+      "chain_id": 84532,
+      "eip712_name": "USDC",
+      "eip712_version": "2",
+      "transfer_mechanism": "eip-3009",
+      "is_testnet": true,
+      "stable": true,
+      "price_symbol": null
+    }
+  ],
+  "configurations": [
+    {
+      "configuration_id": "default",
+      "public_host": "http://localhost:3000",
+      "fireblocks": {
+        "api_key": "<FIREBLOCKS_API_KEY_UUID>",
+        "api_secret_path": "./secrets/fireblocks.pem",
+        "receiver_vault": "0",
+        "base_url": "https://api.fireblocks.io",
+        "deposit_address_cache": {}
+      },
+      "api_keys": [
+        {
+          "key_id": "ak_<GENERATED_BY_CLI>",
+          "hash": "sha256:<HEX_DIGEST>",
+          "scopes": ["process-payments"],
+          "label": "example"
+        }
+      ],
+      "integrity": {
+        "enabled": false,
+        "private_key_path": "./secrets/integrity-p256.pem",
+        "did": "did:web:localhost%3A3000",
+        "kid": "key-1",
+        "alg": "ES256",
+        "ttl_seconds": 300,
+        "serve_did_document": true
+      },
+      "products": [
+        {
+          "product_id": "prod_<GENERATED_BY_CLI>",
+          "name": "Premium",
+          "endpoint": "/premium",
+          "scheme": "exact",
+          "usd_price": 0.01,
+          "pricing": [
+            { "asset_id": "USDC_BASECHAIN_ETH_TEST5_8SH8", "amount": null }
+          ],
+          "description": null,
+          "mime_type": "application/json",
+          "category": null,
+          "is_discoverable": false
+        }
+      ]
+    }
+  ]
+}
