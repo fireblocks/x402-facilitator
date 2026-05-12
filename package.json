@@ -21,6 +21,9 @@
     "setup:admin-token": "ts-node scripts/setup-admin-token.ts",
     "setup:migrate": "ts-node scripts/setup-migrate.ts",
     "e2e": "ts-node scripts/e2e.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit"
   },
@@ -54,9 +57,13 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.11",
     "@types/pg": "^8.11.10",
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^2.1.9",
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

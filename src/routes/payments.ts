@@ -8,8 +8,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createHash } from 'crypto';
 import { ethers } from 'ethers';
+import { computeAuthorizationHash } from '../utils/authorizationHash';
 import { FacilitatorRepository } from '../repositories/interfaces/FacilitatorRepository';
 import { AssetRepository } from '../repositories/interfaces/AssetRepository';
 import { ProductRepository } from '../repositories/interfaces/ProductRepository';
@@ -51,31 +51,6 @@ export interface PaymentRoutesDeps {
 
 export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
   const router = Router();
-
-  /**
-   * Hash the signed authorization for replay-protection lookups.
-   * Canonicalises by sorting object keys recursively, then SHA-256s the
-   * JSON. Same payload (regardless of property ordering) → same hash.
-   * Covers the message + signature so any modification produces a
-   * different key.
-   */
-  function computeAuthorizationHash(payload: V2PaymentPayload['payload']): string {
-    const sortedJson = JSON.stringify(payload, sortKeysReplacer(payload));
-    return createHash('sha256').update(sortedJson).digest('hex');
-  }
-
-  function sortKeysReplacer(_root: unknown) {
-    return (_key: string, value: unknown) => {
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        const sorted: Record<string, unknown> = {};
-        for (const k of Object.keys(value as Record<string, unknown>).sort()) {
-          sorted[k] = (value as Record<string, unknown>)[k];
-        }
-        return sorted;
-      }
-      return value;
-    };
-  }
 
   async function resolveReceiverAddress(
     scope: TenantScope,
