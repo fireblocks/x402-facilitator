@@ -903,4 +903,8 @@ Requests are routed to the right configuration by matching the request's `Host` 
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+Apache License 2.0 — see [LICENSE](./LICENSE).
+
+## Disclaimer
+
+This software handles on-chain value transfer. Before integrating, please read the full [DISCLAIMER](./DISCLAIMER.md) — it covers irreversibility of on-chain transfers, the absence of a third-party security audit, third-party contract risk (Permit2, MetaMask Delegation Framework, ERC-20 token contracts including USDC / USDT blacklisting mechanics), the non-advisory nature of this code, jurisdictional and data-protection considerations (GDPR / UK GDPR), the Fireblocks trademark, the absence of any fiduciary or custodial relationship, and the independence of the x402 protocol specification.
