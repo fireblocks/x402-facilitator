@@ -105,6 +105,37 @@ export function registerPaymentsCommand(program: Command): void {
     });
 
   payments
+    .command('refund-batch <paymentIds...>')
+    .description(
+      'Batch-refund N payments in one Fireblocks multi-destination TRANSFER. ' +
+        'All payments must share the same asset and be completed/settled. ' +
+        'Requires `wallet.ff.evm-multi-dest` enabled on the workspace.',
+    )
+    .action(async function (this: Command, paymentIds: string[]) {
+      try {
+        if (paymentIds.length === 0) {
+          fail('Provide at least one paymentId.');
+          return;
+        }
+        const http = cliClientFrom(this);
+        const result = await http.post<{
+          success: boolean;
+          refunded: number;
+          transactionHash: string;
+          fireblocksTxId: string;
+          blockNumber: number;
+          paymentIds: string[];
+        }>('/api/admin/payments/refund-batch', { paymentIds });
+        success(
+          `Batch refund of ${result.refunded} payment(s) — tx=${result.transactionHash} fbTx=${result.fireblocksTxId}`,
+        );
+        printJson(result);
+      } catch (err) {
+        fail((err as Error).message);
+      }
+    });
+
+  payments
     .command('sync <paymentId>')
     .description(
       'Reconcile a settling payment against Fireblocks — asks Fireblocks what state the tx is in and transitions the row accordingly',

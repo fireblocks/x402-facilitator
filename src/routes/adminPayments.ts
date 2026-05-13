@@ -11,13 +11,16 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { PaymentRepository, PaymentStatus } from '../repositories/interfaces/PaymentRepository';
+import { createHash } from 'crypto';
+import { Payment, PaymentRepository, PaymentStatus } from '../repositories/interfaces/PaymentRepository';
 import { AssetRepository } from '../repositories/interfaces/AssetRepository';
 import { ProductRepository } from '../repositories/interfaces/ProductRepository';
 import { FireblocksSettlementFactory } from '../services/fireblocksSettlementFactory';
 import { PaymentReconciler } from '../services/reconciliation/PaymentReconciler';
 import { requireUserScope } from '../middleware/auth';
 import { PAYMENTS_READ, PAYMENTS_WRITE } from '../auth/principals';
+
+const MAX_REFUND_BATCH_SIZE = 50;
 
 const VALID_STATUSES: ReadonlySet<string> = new Set<PaymentStatus>([
   'pending',
@@ -176,7 +179,7 @@ export function createAdminPaymentRoutes(
 
         await payments.markRefunding(req.scope, paymentId);
         try {
-          const svc = fireblocksFactory.get(req.scope, asset.chainId);
+          const svc = fireblocksFactory.getForRefund(req.scope, asset.chainId);
           const result = await svc.refund(
             asset.address,
             payment.fromAddress,
@@ -196,6 +199,148 @@ export function createAdminPaymentRoutes(
         }
       } catch (err) {
         console.error('[admin/payments] refund error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    },
+  );
+
+  /**
+   * Batch-refund N completed/settled payments in a single Fireblocks
+   * TRANSFER op (multi-destination). All payments must be in the
+   * caller's scope, refundable, and use the same asset. Gas is
+   * amortized across the batch.
+   *
+   * Requires `wallet.ff.evm-multi-dest` enabled on the Fireblocks
+   * workspace. All rows are marked `refunding` before the on-chain
+   * submit; on success they transition to `refunded` with the shared
+   * tx hash + Fireblocks tx id; on failure all transition to
+   * `refund_failed` with the same error.
+   */
+  router.post(
+    '/refund-batch',
+    requireUserScope(PAYMENTS_WRITE),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.scope) {
+          res.status(400).json({ error: 'Scope not resolved' });
+          return;
+        }
+        const scope = req.scope;
+        const body = (req.body ?? {}) as { paymentIds?: unknown };
+        const paymentIds = Array.isArray(body.paymentIds)
+          ? body.paymentIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+          : [];
+        if (paymentIds.length === 0) {
+          res.status(400).json({
+            error: 'Body must include { paymentIds: string[] } with at least one id',
+          });
+          return;
+        }
+        if (paymentIds.length > MAX_REFUND_BATCH_SIZE) {
+          res.status(400).json({
+            error: `Batch size ${paymentIds.length} exceeds maximum of ${MAX_REFUND_BATCH_SIZE}`,
+          });
+          return;
+        }
+
+        // Load all payments and partition into refundable / not.
+        const loaded = await Promise.all(paymentIds.map((id) => payments.get(scope, id)));
+        const missing: string[] = [];
+        const notRefundable: Array<{ paymentId: string; status: string }> = [];
+        const missingFromAddress: string[] = [];
+        const refundable: Payment[] = [];
+        for (let i = 0; i < loaded.length; i++) {
+          const p = loaded[i];
+          if (!p) {
+            missing.push(paymentIds[i] ?? '');
+            continue;
+          }
+          if (p.status !== 'completed' && p.status !== 'settled') {
+            notRefundable.push({ paymentId: p.paymentId, status: p.status });
+            continue;
+          }
+          if (!p.fromAddress) {
+            missingFromAddress.push(p.paymentId);
+            continue;
+          }
+          refundable.push(p);
+        }
+        if (missing.length || notRefundable.length || missingFromAddress.length) {
+          res.status(400).json({
+            error: 'Some payments are not refundable',
+            details: { missing, notRefundable, missingFromAddress },
+          });
+          return;
+        }
+
+        // Same-asset constraint — multi-dest TRANSFER is one asset only.
+        const distinctAssets = new Set(refundable.map((p) => p.assetId));
+        if (distinctAssets.size > 1) {
+          res.status(400).json({
+            error: 'Batch refunds require all payments to use the same asset',
+            details: { assets: [...distinctAssets] },
+          });
+          return;
+        }
+        const assetId = refundable[0].assetId;
+        const asset = assets.get(assetId);
+        if (!asset) {
+          res.status(400).json({
+            error: `Asset ${assetId} no longer in catalog — refund cannot be constructed.`,
+          });
+          return;
+        }
+
+        // Mark all refunding before kicking off the on-chain tx.
+        for (const p of refundable) {
+          await payments.markRefunding(scope, p.paymentId);
+        }
+
+        // Stable idempotency key — same scope + same set of paymentIds
+        // collapses to the same Fireblocks tx on retry. Truncated to 40
+        // chars (Fireblocks's max); 160 bits is more than enough entropy
+        // to avoid collision across our paymentId space.
+        const sortedIds = refundable.map((p) => p.paymentId).sort();
+        const idempotencyKey = createHash('sha256')
+          .update(`${scope.tenantId}:${scope.configurationId}:refund-batch:${sortedIds.join(',')}`)
+          .digest('hex')
+          .slice(0, 40);
+
+        try {
+          const svc = fireblocksFactory.getForRefund(scope, asset.chainId);
+          const result = await svc.refundBatch(
+            assetId,
+            asset.decimals,
+            refundable.map((p) => ({
+              to: p.fromAddress as string,
+              amount: BigInt(p.amountBaseUnits),
+            })),
+            { idempotencyKey, note: `x402 batch refund · ${refundable.length} payments` },
+          );
+          for (const p of refundable) {
+            await payments.attachFireblocksTxId(scope, p.paymentId, result.txId);
+            await payments.markRefunded(scope, p.paymentId, result.txHash);
+          }
+          res.status(200).json({
+            success: true,
+            refunded: refundable.length,
+            transactionHash: result.txHash,
+            fireblocksTxId: result.txId,
+            blockNumber: result.blockNumber,
+            paymentIds: sortedIds,
+          });
+        } catch (err) {
+          const msg = (err as Error).message;
+          for (const p of refundable) {
+            await payments.markRefundFailed(scope, p.paymentId, msg);
+          }
+          res.status(502).json({
+            error: `Batch refund failed on-chain: ${msg}`,
+            paymentIds: sortedIds,
+          });
+        }
+      } catch (err) {
+        console.error('[admin/payments] refund-batch error:', err);
         res.status(500).json({ error: 'Internal server error' });
       }
     },

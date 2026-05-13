@@ -15,26 +15,49 @@ export class FireblocksSettlementFactory {
   constructor(private readonly facilitator: FacilitatorRepository) {}
 
   /**
-   * Get or construct the settlement service for (scope, chainId).
+   * Get or construct the SETTLEMENT service for (scope, chainId).
+   * Bound to the broadcaster vault (facilitator_vault ?? receiver_vault) —
+   * that's the vault whose API user signs the on-chain settle tx.
    */
   get(scope: TenantScope, chainId?: number): FireblocksSettlementService {
-    const key = `${formatScope(scope)}|${chainId ?? 'default'}`;
-    const cached = this.services.get(key);
-    if (cached) return cached;
-    const service = this.build(scope, chainId);
-    this.services.set(key, service);
-    return service;
+    const fb = this.facilitator.get(scope).fireblocks;
+    return this.getOrBuild('settle', scope, chainId, fb.facilitatorVault ?? fb.receiverVault);
   }
 
-  private build(scope: TenantScope, chainId?: number): FireblocksSettlementService {
+  /**
+   * Get or construct the REFUND service for (scope, chainId).
+   * Bound to the vault that actually holds the USDC after settlement —
+   * merchant_vault if set (split-vault mode), else receiver_vault
+   * (single-vault mode, where the broadcaster is also the receiver).
+   *
+   * Distinct from `get()` because in the gas-sponsored split-vault
+   * topology the broadcaster vault holds no funds; refunding from it
+   * would revert with insufficient balance.
+   */
+  getForRefund(scope: TenantScope, chainId?: number): FireblocksSettlementService {
     const fb = this.facilitator.get(scope).fireblocks;
-    return new FireblocksSettlementService({
+    return this.getOrBuild('refund', scope, chainId, fb.merchantVault ?? fb.receiverVault);
+  }
+
+  private getOrBuild(
+    role: 'settle' | 'refund',
+    scope: TenantScope,
+    chainId: number | undefined,
+    vaultAccountId: string,
+  ): FireblocksSettlementService {
+    const key = `${role}|${formatScope(scope)}|${chainId ?? 'default'}|${vaultAccountId}`;
+    const cached = this.services.get(key);
+    if (cached) return cached;
+    const fb = this.facilitator.get(scope).fireblocks;
+    const service = new FireblocksSettlementService({
       apiKey: fb.apiKey,
       apiSecret: fb.apiSecretPath,
-      vaultAccountId: fb.facilitatorVault ?? fb.receiverVault,
+      vaultAccountId,
       baseUrl: fb.baseUrl,
       chainId,
     });
+    this.services.set(key, service);
+    return service;
   }
 
   clear(): void {

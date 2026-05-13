@@ -245,4 +245,114 @@ export class FireblocksSettlementService {
     const callData = iface.encodeFunctionData('transfer', [to, amount]);
     return this.contractCall(tokenAddress, callData, `x402 refund to ${to}`);
   }
+
+  /**
+   * Batch-refund N recipients in a single Fireblocks TRANSFER op.
+   *
+   * Uses Fireblocks's multi-destination TRANSFER (`destinations[]`),
+   * which the workspace must have `wallet.ff.evm-multi-dest` enabled
+   * to use. The result is ONE on-chain tx that pays N recipients of
+   * the same asset — gas is amortized across the batch.
+   *
+   * Note: this is a TRANSFER (not CONTRACT_CALL), so `fbAssetId` must
+   * be the Fireblocks asset id of the token itself (e.g.
+   * `USDC_BASECHAIN_ETH_TEST5_8SH8`), NOT the chain's native asset id.
+   *
+   * Unit conversion: TRANSFER amounts are the human-readable decimal
+   * form ("0.01"), NOT base units ("10000"). The caller passes bigint
+   * base units (matching the rest of the codebase) and the service
+   * formats them using the asset's decimals.
+   *
+   * All destinations are submitted as ONE_TIME_ADDRESS peers. Same-
+   * address refunds (the same payer refunded for two payments) are
+   * accepted — they just appear as two separate destinations.
+   *
+   * @param fbAssetId      Fireblocks asset id of the token being refunded.
+   * @param decimals       Token decimals (used to convert base units → decimal).
+   * @param refunds        Per-recipient `(to, amount)` pairs in base units, ≥1.
+   * @param options.idempotencyKey  Optional Fireblocks idempotency key.
+   * @param options.note            Optional Fireblocks tx note.
+   * @returns The Fireblocks tx id, on-chain hash, and block number.
+   */
+  async refundBatch(
+    fbAssetId: string,
+    decimals: number,
+    refunds: Array<{ to: string; amount: bigint }>,
+    options?: { idempotencyKey?: string; note?: string },
+  ): Promise<{ txId: string; txHash: string; blockNumber: number }> {
+    if (refunds.length === 0) {
+      throw new Error('refundBatch: refunds[] must have at least one entry');
+    }
+
+    const destinations = refunds.map((r) => ({
+      amount: ethers.formatUnits(r.amount, decimals),
+      destination: {
+        type: PeerType.ONE_TIME_ADDRESS,
+        oneTimeAddress: { address: r.to },
+      },
+    }));
+
+    let createResp: { id: string; status: string };
+    try {
+      createResp = await this.sdk.createTransaction(
+        {
+          operation: TransactionOperation.TRANSFER,
+          assetId: fbAssetId,
+          source: { type: PeerType.VAULT_ACCOUNT, id: this.vaultAccountId },
+          destinations,
+          note: options?.note ?? `x402 batch refund (${refunds.length} recipients)`,
+        },
+        options?.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined,
+      );
+    } catch (err) {
+      // axios swallows the Fireblocks response body behind `error.message`.
+      // Surface it so callers see the actual rejection reason (insufficient
+      // balance, invalid asset, idempotency key length, etc).
+      const e = err as { response?: { status?: number; data?: unknown }; message?: string };
+      const body = e.response?.data;
+      throw new Error(
+        `Fireblocks createTransaction failed (status=${e.response?.status ?? '?'}): ` +
+          `${body ? JSON.stringify(body) : e.message ?? 'unknown error'}`,
+      );
+    }
+    const { id, status } = createResp;
+
+    console.log(
+      `[fireblocks] Batch refund created: ${id} (status: ${status}) — ${refunds.length} recipients`,
+    );
+
+    let txInfo = await this.sdk.getTransactionById(id);
+    let attempts = 0;
+    while (!TERMINAL_STATES.includes(txInfo.status)) {
+      if (++attempts >= MAX_POLL_ATTEMPTS) {
+        throw new Error(
+          `Fireblocks batch refund ${id} did not reach terminal state after ` +
+            `${MAX_POLL_ATTEMPTS} polls (last status: ${txInfo.status}` +
+            `${txInfo.subStatus ? `, ${txInfo.subStatus}` : ''}). ` +
+            `Fireblocks tx id is ${id} — check the workspace.`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      txInfo = await this.sdk.getTransactionById(id);
+      console.log(
+        `[fireblocks] Batch refund ${id}: ${txInfo.status}` +
+          `${txInfo.subStatus ? ` (${txInfo.subStatus})` : ''}`,
+      );
+    }
+
+    if (txInfo.status !== TransactionStatus.COMPLETED) {
+      throw new Error(
+        `Fireblocks batch refund ${id} failed: ${txInfo.status}` +
+          `${txInfo.subStatus ? ` (${txInfo.subStatus})` : ''}`,
+      );
+    }
+
+    console.log(`[fireblocks] Batch refund ${id} completed: ${txInfo.txHash}`);
+
+    return {
+      txId: id,
+      txHash: txInfo.txHash,
+      blockNumber: txInfo.blockInfo?.blockHeight ? parseInt(txInfo.blockInfo.blockHeight, 10) : 0,
+    };
+  }
 }
