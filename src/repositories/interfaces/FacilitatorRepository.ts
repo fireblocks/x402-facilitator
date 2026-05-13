@@ -10,6 +10,10 @@ export interface FireblocksConfig {
   apiKey: string;
   apiSecretPath: string;
   receiverVault: string;
+  /** Vault that broadcasts settlement (msg.sender). Defaults to receiverVault. */
+  facilitatorVault?: string;
+  /** Vault whose address receives funds via payTo. Defaults to receiverVault. */
+  merchantVault?: string;
   baseUrl: string;
   /**
    * Cached `getDepositAddresses(vault, asset_id)` results, keyed by

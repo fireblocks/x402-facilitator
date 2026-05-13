@@ -59,7 +59,11 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
     const cfg = deps.facilitator.get(scope);
     const cached = cfg.fireblocks.depositAddressCache[asset.assetId];
     if (cached) return cached;
-    return deps.fireblocksFactory.get(scope, asset.chainId).getWalletAddress();
+    const fb = deps.fireblocksFactory.get(scope, asset.chainId);
+    if (cfg.fireblocks.merchantVault) {
+      return fb.getWalletAddressForVault(cfg.fireblocks.merchantVault, asset.assetId);
+    }
+    return fb.getWalletAddress();
   }
 
   function quoteToRequirements(

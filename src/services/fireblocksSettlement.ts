@@ -77,6 +77,20 @@ export class FireblocksSettlementService {
   }
 
   /**
+   * Fetch the EVM deposit address of an arbitrary vault on this chain.
+   * Used to resolve the merchant vault's payTo when it differs from
+   * the broadcaster (facilitator) vault.
+   */
+  async getWalletAddressForVault(vaultId: string, assetId?: string): Promise<string> {
+    const useAssetId = assetId ?? this.assetId;
+    const addresses = await this.sdk.getDepositAddresses(vaultId, useAssetId);
+    if (!addresses || addresses.length === 0) {
+      throw new Error(`No deposit address found for vault ${vaultId}, asset ${useAssetId}`);
+    }
+    return addresses[0].address;
+  }
+
+  /**
    * Activate the configured chain's native asset on the vault (creates the
    * wallet and generates a deposit address) if it doesn't already exist.
    * Returns the freshly-created address.

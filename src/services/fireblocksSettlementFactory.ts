@@ -31,7 +31,7 @@ export class FireblocksSettlementFactory {
     return new FireblocksSettlementService({
       apiKey: fb.apiKey,
       apiSecret: fb.apiSecretPath,
-      vaultAccountId: fb.receiverVault,
+      vaultAccountId: fb.facilitatorVault ?? fb.receiverVault,
       baseUrl: fb.baseUrl,
       chainId,
     });

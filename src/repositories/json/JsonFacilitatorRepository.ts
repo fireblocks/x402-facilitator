@@ -17,6 +17,8 @@ export class JsonFacilitatorRepository implements FacilitatorRepository {
         apiKey: block.fireblocks.api_key,
         apiSecretPath: block.fireblocks.api_secret_path,
         receiverVault: block.fireblocks.receiver_vault,
+        facilitatorVault: block.fireblocks.facilitator_vault,
+        merchantVault: block.fireblocks.merchant_vault,
         baseUrl: block.fireblocks.base_url,
         depositAddressCache: { ...block.fireblocks.deposit_address_cache },
       },

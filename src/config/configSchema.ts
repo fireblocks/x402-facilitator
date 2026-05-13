@@ -27,6 +27,21 @@ const fireblocksBaseSchema = z.object({
   api_key: z.string(),
   api_secret_path: z.string(),
   receiver_vault: z.string(),
+  /**
+   * Optional: vault whose API user broadcasts the on-chain settlement
+   * tx (msg.sender, pays gas). When unset, `receiver_vault` is used —
+   * single-vault mode where one vault both broadcasts and receives.
+   */
+  facilitator_vault: z.string().optional(),
+  /**
+   * Optional: vault whose EVM address goes into the EIP-3009 `payTo`
+   * (and equivalent fields for permit2 / erc7710). When unset, the
+   * settlement vault's own address is used — meaning the broadcaster
+   * also receives the funds. Setting this distinct from
+   * `facilitator_vault` enables the meta-tx relayer pattern: the
+   * facilitator pays gas, the merchant receives USDC.
+   */
+  merchant_vault: z.string().optional(),
   base_url: z.string().url().default('https://api.fireblocks.io'),
   /**
    * Cached Fireblocks `getDepositAddresses(vault, asset_id)` results,
