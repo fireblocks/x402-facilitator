@@ -1,6 +1,6 @@
 {
   "name": "fireblocks-x402-facilitator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "x402 payment facilitator — Fireblocks-backed settlement, pluggable payment store, CLI-managed configuration.",
   "main": "dist/index.js",
   "workspaces": [
