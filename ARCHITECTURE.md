@@ -324,7 +324,7 @@ src/
     payments.ts                    # /api/payments/{supported,create,verify,settle}
     discovery.ts                   # /api/discovery/resources
   extensions/                      # x402 extensions (identifier, gas sponsoring)
-  cli/                             # commander CLI (init/config/fireblocks/keys/...)
+  cli/                             # remote admin CLI (config/fireblocks/keys/...)
   types/entities.ts                # x402 protocol types only
   utils/randId.ts                  # Stripe-style prefixed IDs
 ```

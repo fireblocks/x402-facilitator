@@ -131,7 +131,7 @@ export class ConfigFile {
     if (!fs.existsSync(this.filePath)) {
       throw new Error(
         `Config file not found: ${this.filePath}\n` +
-          `Run 'x402 init' to scaffold a starter config.`,
+          `Run 'npm run setup' to scaffold a starter config.`,
       );
     }
     const raw = fs.readFileSync(this.filePath, 'utf-8');

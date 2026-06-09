@@ -250,7 +250,7 @@ async function main() {
     const top = configFile.get();
     // Probe the same resolution order the UserAuthenticator uses so
     // the banner reflects what's actually active.
-    let adminStatus = 'DISABLED — run `x402 init` to scaffold a signing secret';
+    let adminStatus = 'DISABLED — run `npm run setup` to scaffold a signing secret';
     if (process.env.X402_ADMIN_JWT_JWKS_URL) {
       adminStatus = `JWT via JWKS (${process.env.X402_ADMIN_JWT_JWKS_URL})`;
     } else {
