@@ -8,13 +8,13 @@
  *
  * Needs:
  *   X402_ADMIN_TOKEN   management JWT — mint one locally via
- *                      `npm run setup:token` (or your IDP in prod).
+ *                      `npm run setup:admin-token` (or your IDP in prod).
  *   X402_URL           facilitator base URL (default http://localhost:3000)
  *   CONFIGURATION      optional X-Configuration-ID override
  *
- * Local-only operations (init, token-minting, SQLite migration,
+ * Local-only operations (bootstrap, token-minting, SQLite migration,
  * Fireblocks credential writes) live in `scripts/` and run through
- * `npm run setup[:token|:migrate]`.
+ * `npm run setup[:admin-token|:migrate]`.
  */
 
 import 'dotenv/config';

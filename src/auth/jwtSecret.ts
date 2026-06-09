@@ -5,11 +5,11 @@
  * Resolution order (first hit wins):
  *   1. process.env.X402_ADMIN_JWT_SECRET     (raw string / base64 value)
  *   2. process.env.X402_ADMIN_JWT_SECRET_FILE (path to a file)
- *   3. ./secrets/jwt-hs256.key                (default, created by `x402 init`)
+ *   3. ./secrets/jwt-hs256.key                (default, created by `npm run setup`)
  *
  * Returns `null` if none are present — callers decide whether that's
  * a soft failure (server → DenyUserAuthenticator) or hard
- * (CLI → ask the user to run `x402 init`).
+ * (setup:admin-token → ask the user to run `npm run setup` first).
  */
 
 import fs from 'fs';

@@ -4,7 +4,7 @@
  *
  * The only real implementation is `JwtUserAuthenticator`. In local dev,
  * the CLI mints short-lived HS256 tokens against a secret that's
- * scaffolded by `x402 init`. In production, the same interface fronts
+ * scaffolded by `npm run setup`. In production, the same interface fronts
  * a JWKS-backed verifier that validates Fireblocks-issued tokens.
  *
  * If no JWT verifier is configured (neither X402_ADMIN_JWT_SECRET,
