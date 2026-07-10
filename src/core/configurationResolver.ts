@@ -30,14 +30,16 @@ export interface ConfigurationResolver {
 /**
  * Default resolver: reads from the ConfigFile's `configurations[]`.
  * Matches Host (minus port if that's how configs declare themselves)
- * for proxy traffic; falls back to default_configuration_id everywhere.
+ * for proxy traffic. Unknown hosts return null so public host-bound
+ * routes cannot silently bleed the default configuration in
+ * multi-configuration deployments.
  */
 export class DefaultConfigurationResolver implements ConfigurationResolver {
   constructor(private readonly configFile: ConfigFile) {}
 
   fromProxyRequest(req: Request): TenantScope | null {
     const hostHeader = (req.headers.host || '').toLowerCase();
-    if (!hostHeader) return this.defaultScope();
+    if (!hostHeader) return null;
     const top = this.configFile.get();
     for (const cfg of top.configurations) {
       try {
@@ -50,8 +52,7 @@ export class DefaultConfigurationResolver implements ConfigurationResolver {
         // malformed public_host — skip
       }
     }
-    // Fall back to default so single-host deployments Just Work.
-    return this.defaultScope();
+    return null;
   }
 
   fromAdminRequest(req: Request): TenantScope {

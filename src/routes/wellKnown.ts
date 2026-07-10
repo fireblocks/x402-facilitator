@@ -30,8 +30,17 @@ export function createWellKnownRoutes(
 
   router.get('/did.json', (req: Request, res: Response) => {
     // Prefer host-based resolution so multi-tenant deployments serve
-    // each merchant's own DID doc. Falls back to default when no match.
-    const scope = resolver.fromProxyRequest(req) ?? resolver.defaultScope();
+    // each merchant's own DID doc. Unknown hosts must not receive the
+    // default configuration's document.
+    const scope = resolver.fromProxyRequest(req);
+    if (!scope) {
+      res.status(404).json({
+        error: 'DID document not served for this host',
+        details:
+          'No configuration public_host matches the request Host header.',
+      });
+      return;
+    }
     const conf = configFile.getConfiguration(scope.configurationId);
     const integrity = conf.integrity;
     if (!integrity || !integrity.enabled || !integrity.serve_did_document) {

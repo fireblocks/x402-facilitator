@@ -100,6 +100,23 @@ export class UptoPermit2Mechanism extends BaseMechanism {
         return { valid: false, error: `Recipient mismatch: expected ${expectedRecipient}, got ${permit2Auth.witness.to}` };
       }
 
+      const expectedFacilitator = String(
+        (params.message as { expectedFacilitator?: string }).expectedFacilitator ?? '',
+      ).trim();
+      if (!expectedFacilitator) {
+        return {
+          valid: false,
+          error: 'Missing expected facilitator binding for upto-permit2 verification',
+        };
+      }
+      if (permit2Auth.witness.facilitator.toLowerCase() !== expectedFacilitator.toLowerCase()) {
+        return {
+          valid: false,
+          error:
+            `Facilitator mismatch: expected ${expectedFacilitator}, got ${permit2Auth.witness.facilitator}`,
+        };
+      }
+
       // Check deadline
       const nowUnix = Math.floor(Date.now() / 1000);
       if (Number(permit2Auth.deadline) <= nowUnix) {

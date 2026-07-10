@@ -47,7 +47,7 @@ The server is a single process that splits traffic by **path prefix**:
 | `/api/admin/fireblocks`, `/api/admin/fireblocks/test` | JWT, `admin:read` / `admin:write` | Fireblocks config view + operational test |
 | `/api/admin/payments`, `/api/admin/payments/:id` | JWT, `payments:read` | Read payments |
 | `/api/admin/payments/:id/mark-failed`, `/api/admin/payments/:id/refund`, `/api/admin/payments/:id/sync`, `/api/admin/payments/sync-all`, `/api/admin/payments/sweep-expired` | JWT, `payments:write` | Operator state changes (mark-failed, Fireblocks refund, per-row sync, bulk sync, bulk expire) |
-| `/api/payments/supported` | public | Schemes/networks advertised |
+| `/api/payments/supported` | public | Schemes/networks/signers advertised for the resolved configuration's products |
 | `/api/payments/{create,verify,settle}` | API token, scope `process-payments` | Payment processing |
 
 Anything not listed 404s. There is no reverse proxy; merchant traffic never touches the facilitator.
@@ -58,7 +58,7 @@ When a configuration has `integrity.enabled: true` + a P-256 private key at `int
 
 `resource.url`, `error`, and `extensions` are deliberately excluded from the signed payload because the merchant SDK augments them (resource.url is rewritten to the merchant's origin). Payment-critical fields (amount, asset, payTo, network, scheme) all live inside `accepts[]` and are signed.
 
-When `integrity.serve_did_document: true`, the facilitator serves the DID document at `GET /.well-known/did.json` (Host-resolved). Otherwise the operator self-hosts at whatever domain the `did:web:…` encodes. Signer lives in `src/services/integrity/IntegritySigner.ts`; route in `src/routes/wellKnown.ts`; envelope assembled in `src/routes/payments.ts` on `/create`.
+When `integrity.serve_did_document: true`, the facilitator serves the DID document at `GET /.well-known/did.json` for the configuration whose `public_host` matches the request `Host` header. Unknown hosts return `404` and do not fall back to the default configuration. Otherwise the operator self-hosts at whatever domain the `did:web:…` encodes. Signer lives in `src/services/integrity/IntegritySigner.ts`; route in `src/routes/wellKnown.ts`; envelope assembled in `src/routes/payments.ts` on `/create`.
 
 ### Network policy
 
@@ -150,9 +150,11 @@ its own configuration.
 
 ### Configuration resolution
 
-- **Proxy traffic** (non-`/api/*` paths) resolves scope by matching the
-  request's `Host` header against each configuration's `public_host`.
-  No match → falls back to `default_configuration_id`.
+- **Host-bound public routes** (`/api/discovery/*`, `/.well-known/*`)
+  resolve scope by matching the request's `Host` header against each
+  configuration's `public_host`. No match → no scope. Discovery returns
+  an empty result set and `/.well-known/did.json` returns `404`; neither
+  route falls back to `default_configuration_id`.
 - **Management API** (`/api/admin/*`) accepts `X-Configuration-ID`
   header or `?configuration=…` query param; otherwise uses the default.
   The authenticated `UserPrincipal` must have access to the chosen
@@ -176,7 +178,16 @@ Each asset declares a `transfer_mechanism`. The mechanism controls how signature
 | `upto-permit2` | Permit2 with variable charge amount (scheme `upto`) |
 | `erc7710` | MDF `DelegationManager.redeemDelegations()` — smart-account delegation (plain EOAs can play via EIP-7702 self-upgrade to `EIP7702StatelessDeleGator`) |
 
-The asset's `transfer_mechanism` is the **default**. A product's pricing row can override it with its own `transfer_mechanism` field, so one asset can be offered under multiple mechanisms at once (the 402 emits one `accepts[]` entry per row). The server enforces this on `/verify` + `/settle`: it resolves the payload's mechanism (by shape — `permit2Authorization` / `delegation` / else asset default) and checks the product's pricing[] actually has a row for `(asset_id, resolved mechanism)`; if not, it returns `400 unsupported_scheme`. Requests missing `extra.productId` (i.e. not originated via `/api/payments/create`) are rejected.
+The asset's `transfer_mechanism` is the **default**. A product's pricing row can override it with its own `transfer_mechanism` field, so one asset can be offered under multiple mechanisms at once (the 402 emits one `accepts[]` entry per row). The server enforces this on `/verify` + `/settle`: it resolves the payload's mechanism (by shape — `permit2Authorization` / `delegation` / else asset default) and checks the product's pricing[] actually has a row for `(asset_id, resolved mechanism)`; if not, it returns `400 unsupported_scheme`. Requests missing `extra.productId` (i.e. not originated via `/api/payments/create`) are rejected. For `upto-permit2`, requests must also carry `paymentRequirements.extra.facilitatorAddress`, and the signed witness `facilitator` field must match that expected address.
+
+### `/api/payments/supported`
+
+`GET /api/payments/supported` is public but still configuration-scoped. The route uses the resolved scope and advertises only:
+
+- schemes/networks that appear in products for that configuration
+- signer addresses cached for assets actually referenced by those products
+
+It does **not** enumerate the entire global asset catalog.
 
 ## Authentication
 
@@ -259,6 +270,8 @@ mutations are safe against concurrent reads.
 ### Settlement strategies
 
 `SettlementStrategyFn` is a pure function of `SettlementContext` that picks `optimistic` (proxy first, settle after) or `settle-first` (settle first, refund if upstream fails). Default: always `optimistic`. Replace at wire-up time in `src/index.ts`.
+
+In the merchant middleware package, optimistic settlement is gated on a successful downstream response. If the protected route returns `4xx`/`5xx`, the middleware does not submit the background settlement.
 
 ### Reconciliation
 

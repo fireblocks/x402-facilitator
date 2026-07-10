@@ -12,6 +12,13 @@ The full documentation lives on the Fireblocks developer site:
 
 For an architectural deep-dive (auth model, source layout, transfer mechanisms, payment lifecycle, reconciliation), see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
+## Behavior notes
+
+- `packages/x402-express` optimistic settlement only settles after a successful downstream response. If the protected handler returns `4xx`/`5xx`, the middleware does not charge the payer in the background.
+- Host-bound public routes are strict in multi-configuration deployments: `/.well-known/did.json` serves only for a matching `public_host`, and unknown hosts do not fall back to the default configuration.
+- `upto-permit2` requests must carry `paymentRequirements.extra.facilitatorAddress`, and the facilitator verifies that value against the signed witness binding before accepting `/verify` or `/settle`.
+- `/api/payments/supported` is configuration-scoped. It advertises only schemes, networks, and signer addresses referenced by products in the resolved configuration.
+
 > **Open-source or hosted?** This repository is the open-source facilitator that you run yourself. Fireblocks also offers a fully managed, production-grade hosted x402 Facilitator. [Talk to us about early access](https://www.fireblocks.com/#request-demo).
 
 ## License
