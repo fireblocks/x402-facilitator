@@ -216,7 +216,9 @@ export function x402Middleware(opts: X402MiddlewareOptions): RequestHandler {
         return next();
       }
 
-      // Optimistic: serve next, settle in the background after response.
+      // Optimistic: serve next, settle in the background after a
+      // successful response only. Failed downstream handlers must not
+      // charge the payer after the request has already been rejected.
       attachBackgroundSettlement(res, async () => {
         try {
           const settle = await client.settle(payload, matched);
@@ -263,6 +265,7 @@ function attachPaymentResponseHeader(res: Response, settle: SettlementResponse):
 
 function attachBackgroundSettlement(res: Response, run: () => Promise<void>): void {
   res.on('finish', () => {
+    if (res.statusCode >= 400) return;
     run().catch((err) => console.error('[x402] background task threw:', err));
   });
 }

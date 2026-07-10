@@ -206,27 +206,29 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
         res.status(400).json({ error: 'Scope not resolved' });
         return;
       }
-      const allAssets = deps.assets.list();
+      const scopedProducts = deps.products.list(req.scope);
+      const referencedAssetIds = new Set<string>();
       const kindsSet = new Set<string>();
       const kinds: Array<{ x402Version: 2; scheme: string; network: string }> = [];
-      for (const a of allAssets) {
-        const network = `eip155:${a.chainId}`;
-        const schemes = new Set<string>(['exact']);
-        if (a.transferMechanism === 'permit2' || a.transferMechanism === 'upto-permit2') {
-          schemes.add('upto');
-        }
-        for (const scheme of schemes) {
-          const key = `${scheme}:${network}`;
+      for (const product of scopedProducts) {
+        for (const row of product.pricing) {
+          referencedAssetIds.add(row.assetId);
+          const asset = deps.assets.get(row.assetId);
+          if (!asset) continue;
+          const network = `eip155:${asset.chainId}`;
+          const key = `${product.scheme}:${network}`;
           if (!kindsSet.has(key)) {
             kindsSet.add(key);
-            kinds.push({ x402Version: 2, scheme, network });
+            kinds.push({ x402Version: 2, scheme: product.scheme, network });
           }
         }
       }
       // Build signers map per-chain by grouping cached asset addresses.
       const signers: Record<string, string[]> = {};
       const cache = deps.facilitator.get(req.scope).fireblocks.depositAddressCache;
-      for (const a of allAssets) {
+      for (const assetId of referencedAssetIds) {
+        const a = deps.assets.get(assetId);
+        if (!a) continue;
         const addr = cache[a.assetId];
         if (!addr) continue;
         const key = `eip155:${a.chainId}`;
@@ -400,6 +402,26 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
     return { ok: true };
   }
 
+  function expectedFacilitatorAddress(
+    paymentRequirements: V2PaymentRequirements,
+  ): string | null {
+    const extra = paymentRequirements.extra as Record<string, unknown> | undefined;
+    const raw = extra?.facilitatorAddress;
+    if (typeof raw !== 'string' || raw.length === 0) return null;
+    return raw;
+  }
+
+  function withExpectedFacilitator(
+    message: unknown,
+    facilitatorAddress: string | null,
+  ): unknown {
+    if (!facilitatorAddress) return message;
+    return {
+      ...((message ?? {}) as object),
+      expectedFacilitator: facilitatorAddress,
+    };
+  }
+
   router.post('/verify', requireScope('process-payments'), async (req: Request, res: Response) => {
     try {
       if (!req.scope) {
@@ -477,6 +499,15 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
       }
 
       const verifyMessage = permit2Authorization || delegation || authorization;
+      const facilitatorAddress =
+        mechanism === 'upto-permit2' ? expectedFacilitatorAddress(paymentRequirements) : null;
+      if (mechanism === 'upto-permit2' && !facilitatorAddress) {
+        res.status(400).json({
+          error: X402ErrorCode.InvalidPaymentRequirements,
+          details: 'Missing paymentRequirements.extra.facilitatorAddress for upto-permit2',
+        });
+        return;
+      }
       const transferMechanism = deps.mechanismRegistry.getMechanism(mechanism);
       if (!transferMechanism) {
         res.status(400).json({
@@ -491,7 +522,9 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
         tokenName: asset.eip712Name,
         tokenVersion: asset.eip712Version,
         chainId: asset.chainId,
-        message: verifyMessage,
+        message: mechanism === 'upto-permit2'
+          ? withExpectedFacilitator(verifyMessage, facilitatorAddress)
+          : verifyMessage,
         signature,
         expectedAmount: BigInt(paymentRequirements.amount),
         expectedRecipient: paymentRequirements.payTo,
@@ -598,6 +631,15 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
       }
 
       const verifyMessage = permit2Authorization || delegation || authorization;
+      const facilitatorAddress =
+        mechanism === 'upto-permit2' ? expectedFacilitatorAddress(paymentRequirements) : null;
+      if (mechanism === 'upto-permit2' && !facilitatorAddress) {
+        res.status(400).json({
+          error: X402ErrorCode.InvalidPaymentRequirements,
+          details: 'Missing paymentRequirements.extra.facilitatorAddress for upto-permit2',
+        });
+        return;
+      }
       const transferMechanism = deps.mechanismRegistry.getMechanism(mechanism);
       if (!transferMechanism) {
         res.status(400).json({
@@ -656,7 +698,9 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
         tokenName: asset.eip712Name,
         tokenVersion: asset.eip712Version,
         chainId: asset.chainId,
-        message: verifyMessage,
+        message: mechanism === 'upto-permit2'
+          ? withExpectedFacilitator(verifyMessage, facilitatorAddress)
+          : verifyMessage,
         signature,
         expectedAmount: BigInt(paymentRequirements.amount),
         expectedRecipient: paymentRequirements.payTo,
