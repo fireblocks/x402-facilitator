@@ -90,5 +90,6 @@ Each run:
 ## Custom EVM adaptation
 
 The same client pattern can be adapted to custom EVM networks such as Chain
-138 (`eip155:138`) as long as the merchant exposes a normal x402 challenge and
-the facilitator is configured for the corresponding token and receiver route.
+138 (`eip155:138`) when the merchant exposes a normal x402 challenge and the
+operator configures the facilitator for the corresponding token and receiver
+route.

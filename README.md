@@ -27,29 +27,29 @@ useful example is **Chain 138** (`eip155:138`):
 | x402 origin | `https://x402.d-bis.org` |
 | Example asset | `cUSDC_V2` |
 
-If your merchant and facilitator setup already accepts arbitrary EVM network
-configuration, this kind of network usually only needs:
+If your merchant and facilitator setup accepts custom EVM network
+configuration, a network like this usually only needs:
 
 - the chain id / CAIP-2 network id,
 - the token contract address,
 - the RPC endpoint,
 - and the receiver / facilitator configuration for that route.
 
-That keeps the facilitator usable for custom EVM deployments without changing
-the buyer-facing x402 handshake.
+That keeps the buyer-facing x402 handshake the same while allowing operator
+side configuration to expand to additional EVM routes.
 
 ## Atomic x402 note
 
-Some integrators also use a broader **atomic intent** flow above the
+Some integrators also use a broader **atomic intent** flow around the
 facilitator:
 
 1. the buyer signs an x402-compatible authorization,
 2. a filler or executor completes downstream settlement,
 3. the merchant fulfills only after proof is accepted.
 
-That does not replace a facilitator. It changes the orchestration around it.
-The facilitator can still be the settlement and verification component that
-turns the signed payment payload into an on-chain transfer.
+That does not imply built-in support for every such flow. It only means a
+facilitator can still sit at the verification and settlement boundary while a
+separate system handles the higher-level orchestration.
 
 ## License
 
