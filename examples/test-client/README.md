@@ -86,3 +86,10 @@ Each run:
 | `MECHANISM` | auto | Force `eip3009` / `permit2` / `erc7710` |
 | `AUTO_APPROVE` | `false` | For `permit2` — submit `approve(Permit2, MAX)` on-chain if allowance is 0 |
 | `SKIP_BALANCE_CHECK` | `false` | Legacy flag; preflight is always on now |
+
+## Custom EVM adaptation
+
+The same client pattern can be adapted to custom EVM networks such as Chain
+138 (`eip155:138`) when the merchant exposes a normal x402 challenge and the
+operator configures the facilitator for the corresponding token and receiver
+route.

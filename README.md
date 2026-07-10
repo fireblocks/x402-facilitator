@@ -14,6 +14,43 @@ For an architectural deep-dive (auth model, source layout, transfer mechanisms, 
 
 > **Open-source or hosted?** This repository is the open-source facilitator that you run yourself. Fireblocks also offers a fully managed, production-grade hosted x402 Facilitator. [Talk to us about early access](https://www.fireblocks.com/#request-demo).
 
+## Custom EVM note
+
+Many teams integrating x402 do not stop at the default demo networks. One
+useful example is **Chain 138** (`eip155:138`):
+
+| Field | Value |
+|---|---|
+| Chain name | DeFi Oracle Meta Mainnet |
+| RPC | `https://rpc-http-pub.d-bis.org` |
+| Explorer | `https://explorer.d-bis.org` |
+| x402 origin | `https://x402.d-bis.org` |
+| Example asset | `cUSDC_V2` |
+
+If your merchant and facilitator setup accepts custom EVM network
+configuration, a network like this usually only needs:
+
+- the chain id / CAIP-2 network id,
+- the token contract address,
+- the RPC endpoint,
+- and the receiver / facilitator configuration for that route.
+
+That keeps the buyer-facing x402 handshake the same while allowing operator
+side configuration to expand to additional EVM routes.
+
+## Atomic x402 note
+
+Some integrators also use a broader **atomic intent** flow around the
+facilitator:
+
+1. the buyer signs an x402-compatible authorization,
+2. a filler or executor completes downstream settlement,
+3. the merchant fulfills only after proof is accepted.
+
+That does not imply built-in support for every such flow. It only means a
+facilitator can still sit at the verification and settlement boundary while a
+separate system handles the higher-level orchestration.
+
 ## License
 
 Apache License 2.0 — see [LICENSE](./LICENSE).
