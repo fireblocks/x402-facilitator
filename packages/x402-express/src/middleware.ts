@@ -97,7 +97,7 @@ export function x402Middleware(opts: X402MiddlewareOptions): RequestHandler {
     if (!p.productId) {
       throw new Error(`x402Middleware: productId required for ${p.endpoint}`);
     }
-    byEndpoint.set(p.endpoint, p);
+    byEndpoint.set(normalizePath(p.endpoint), p);
   }
 
   const quoteCache = new Map<string, CachedQuote>();
@@ -131,7 +131,7 @@ export function x402Middleware(opts: X402MiddlewareOptions): RequestHandler {
   }
 
   return async function x402Handler(req: Request, res: Response, next: NextFunction) {
-    const binding = byEndpoint.get(req.path);
+    const binding = byEndpoint.get(normalizePath(req.path));
     if (!binding) return next();
 
     let quote: PaymentRequired;
@@ -252,6 +252,17 @@ export function x402Middleware(opts: X402MiddlewareOptions): RequestHandler {
         .json({ error: 'facilitator_error', details: (err as Error).message });
     }
   };
+}
+
+/**
+ * Canonicalise a path so the gate matches the same set of URLs Express
+ * routing does. Express is non-strict and case-insensitive by default, so
+ * `/premium/` and `/PREMIUM` reach the `/premium` handler; an exact-string
+ * lookup would let them bypass the paywall.
+ */
+function normalizePath(path: string): string {
+  const trimmed = path.replace(/\/+$/, '').toLowerCase();
+  return trimmed === '' ? '/' : trimmed;
 }
 
 function attachPaymentResponseHeader(res: Response, settle: SettlementResponse): void {
