@@ -734,6 +734,7 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
           network: paymentRequirements.network,
           payer: expectedOwner,
           errorReason: errMsg,
+          ...(result.pending ? { pending: true, fireblocksTxId: result.fireblocksTxId } : {}),
         };
         res.status(200).json(out);
         return;

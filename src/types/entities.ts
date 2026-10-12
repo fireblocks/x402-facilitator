@@ -113,6 +113,14 @@ export interface V2SettlementResponse {
   errorReason?: string;
   amount?: string;
   extensions?: Record<string, unknown>;
+  /**
+   * Set when Fireblocks accepted the settlement but the live poll
+   * window closed before it reached a terminal state — the tx may
+   * still land, see `fireblocksTxId`. Distinct from `success: false`
+   * meaning a genuine failure.
+   */
+  pending?: boolean;
+  fireblocksTxId?: string;
 }
 
 export interface V2VerifyResponse {

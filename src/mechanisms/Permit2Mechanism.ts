@@ -11,7 +11,7 @@
  *   3. Facilitator calls x402ExactPermit2Proxy.settle() on-chain
  */
 
-import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE } from './TransferMechanism';
+import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE, settleResultFromError } from './TransferMechanism';
 import { ethers } from 'ethers';
 
 /** Canonical x402ExactPermit2Proxy address (CREATE2 deployed) */
@@ -241,11 +241,7 @@ export class Permit2Mechanism extends BaseMechanism {
         blockNumber: result.blockNumber,
       };
     } catch (error) {
-      console.error('[permit2] Settlement error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return settleResultFromError(error, '[permit2]');
     }
   }
 }

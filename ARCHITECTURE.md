@@ -262,7 +262,7 @@ mutations are safe against concurrent reads.
 
 ### Reconciliation
 
-Every settlement persists the Fireblocks-internal tx id (`fireblocksTxId`) on the payment row the moment Fireblocks accepts the `createTransaction` — before the poll loop starts. If the process dies mid-poll, the row stays `settling` but retains the handle.
+Every settlement persists the Fireblocks-internal tx id (`fireblocksTxId`) on the payment row the moment Fireblocks accepts the `createTransaction` — before the poll loop starts. If the process dies mid-poll, the row stays `settling` but retains the handle. If instead the live poll times out while the process is still up (`MAX_POLL_ATTEMPTS`), `POST /settle` reports this to the caller explicitly as `{success: false, pending: true, fireblocksTxId}` rather than a bare failure, since Fireblocks accepted the transaction and it may still complete.
 
 `PaymentReconciler` (`src/services/reconciliation/PaymentReconciler.ts`) drives the row to its real state by asking Fireblocks what the tx resolved to. Mechanism-agnostic — all four mechanisms settle via Fireblocks `CONTRACT_CALL`, so one reconciler covers all of them. Two entry points:
 
