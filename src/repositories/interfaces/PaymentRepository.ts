@@ -162,5 +162,14 @@ export interface PaymentRepository {
    */
   isAuthorizationUsed(scope: TenantScope, authorizationHash: string): Promise<boolean>;
 
+  /**
+   * The non-failed row tracking this authorization hash, if any — same
+   * gate as `isAuthorizationUsed`/the unique constraint, but returning
+   * the row itself. Lets a `DuplicateAuthorizationError` 409 tell a
+   * correctly-retrying client the original status and (once available)
+   * transaction hash, instead of a bare "already processed".
+   */
+  getByAuthorizationHash(scope: TenantScope, authorizationHash: string): Promise<Payment | undefined>;
+
   close?(): Promise<void>;
 }

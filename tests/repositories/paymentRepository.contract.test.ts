@@ -139,6 +139,34 @@ for (const adapter of adapters) {
       expect(await repo.isAuthorizationUsed(OTHER_SCOPE, 'auth-3')).toBe(false);
     });
 
+    it('getByAuthorizationHash returns undefined when not seen', async () => {
+      expect(await repo.getByAuthorizationHash(SCOPE, 'hash-never-seen')).toBeUndefined();
+    });
+
+    it('getByAuthorizationHash returns the non-failed row for a replayed authorization (gives the 409 handler the original status/tx hash to enrich the response with)', async () => {
+      const p = await repo.create(SCOPE, makeInput({ authorizationHash: 'auth-4' }));
+      await repo.markVerified(SCOPE, p.paymentId, '0x' + 'a'.repeat(40));
+      await repo.markSettling(SCOPE, p.paymentId);
+      await repo.markComplete(SCOPE, p.paymentId, '0x' + 'b'.repeat(64), '0x' + 'a'.repeat(40), 123);
+
+      const found = await repo.getByAuthorizationHash(SCOPE, 'auth-4');
+      expect(found?.paymentId).toBe(p.paymentId);
+      expect(found?.status).toBe('completed');
+      expect(found?.transactionHash).toBe('0x' + 'b'.repeat(64));
+    });
+
+    it('getByAuthorizationHash ignores a failed row with that hash (not replay-blocking, nothing to enrich with)', async () => {
+      const p = await repo.create(SCOPE, makeInput({ authorizationHash: 'auth-5' }));
+      await repo.markFailed(SCOPE, p.paymentId, 'bad sig');
+      expect(await repo.getByAuthorizationHash(SCOPE, 'auth-5')).toBeUndefined();
+    });
+
+    it('getByAuthorizationHash scope-isolates', async () => {
+      await repo.create(SCOPE, makeInput({ authorizationHash: 'auth-6' }));
+      expect(await repo.getByAuthorizationHash(SCOPE, 'auth-6')).toBeDefined();
+      expect(await repo.getByAuthorizationHash(OTHER_SCOPE, 'auth-6')).toBeUndefined();
+    });
+
     it('create() throws DuplicateAuthorizationError on a non-failed dup', async () => {
       await repo.create(SCOPE, makeInput({ authorizationHash: 'dup-hash' }));
       await expect(

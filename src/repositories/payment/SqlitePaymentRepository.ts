@@ -458,6 +458,20 @@ export class SqlitePaymentRepository implements PaymentRepository {
     return !!row;
   }
 
+  async getByAuthorizationHash(
+    scope: TenantScope,
+    authorizationHash: string,
+  ): Promise<Payment | undefined> {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM payments
+         WHERE authorization_hash = ? AND status != 'failed'
+         AND tenant_id = ? AND configuration_id = ?`,
+      )
+      .get(authorizationHash, scope.tenantId, scope.configurationId) as PaymentRow | undefined;
+    return row ? rowToDomain(row) : undefined;
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }

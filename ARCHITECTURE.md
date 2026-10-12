@@ -272,6 +272,8 @@ Every settlement persists the Fireblocks-internal tx id (`fireblocksTxId`) on th
 
 **Invariant: rows with a `fireblocksTxId` are reconciler-owned.** The settle route (`src/routes/payments.ts`) will not preempt a row into `failed` status if a `fireblocksTxId` is already attached — the underlying tx may still land, so the row stays `settling` and the reconciler decides terminality from Fireblocks's own truth. Reconciliation also applies to `failed` rows with a `fireblocksTxId` (legacy rows from before this invariant), which can be lifted back to `completed` when Fireblocks reports the tx as COMPLETED — re-opening the refund path. `completed`, `refunded`, and `refund_failed` are merchant-managed terminal states and are never touched by the reconciler.
 
+A client that replays the same authorization while its row is still reconciler-owned sees that reflected in the `DuplicateAuthorizationError` response too: the 409 carries the original row's `status` and, once available, its `transaction`/`fireblocksTxId`, instead of a bare "already processed".
+
 ## Environment variables
 
 ```bash
