@@ -20,6 +20,28 @@ const CHAIN_TO_ASSET: Record<number, string> = {
   84532: 'BASECHAIN_ETH_TEST5',
 };
 
+/**
+ * Thrown when the live poll hits `MAX_POLL_ATTEMPTS` without the
+ * transaction reaching a terminal state. Distinct from a genuine
+ * terminal failure: Fireblocks has accepted the transaction and may
+ * still complete it, so callers should report this as pending (with
+ * the tx id to reconcile against) rather than a flat failure.
+ */
+export class FireblocksPollTimeoutError extends Error {
+  constructor(
+    public readonly fireblocksTxId: string,
+    public readonly lastStatus: string,
+    public readonly lastSubStatus?: string,
+  ) {
+    super(
+      `Fireblocks transaction ${fireblocksTxId} did not reach terminal state after ` +
+        `${MAX_POLL_ATTEMPTS} polls (last status: ${lastStatus}${lastSubStatus ? `, ${lastSubStatus}` : ''}). ` +
+        `fireblocksTxId is persisted — reconcile via POST /api/admin/payments/<id>/sync.`,
+    );
+    this.name = 'FireblocksPollTimeoutError';
+  }
+}
+
 /** Terminal transaction states — stop polling once reached */
 const TERMINAL_STATES: TransactionStatus[] = [
   TransactionStatus.COMPLETED,
@@ -167,13 +189,7 @@ export class FireblocksSettlementService {
     let attempts = 0;
     while (!TERMINAL_STATES.includes(txInfo.status)) {
       if (++attempts >= MAX_POLL_ATTEMPTS) {
-        throw new Error(
-          `Fireblocks transaction ${id} did not reach terminal state after ` +
-            `${MAX_POLL_ATTEMPTS} polls (last status: ${txInfo.status}` +
-            `${txInfo.subStatus ? `, ${txInfo.subStatus}` : ''}). ` +
-            `fireblocksTxId is persisted — reconcile via ` +
-            `POST /api/admin/payments/<id>/sync.`,
-        );
+        throw new FireblocksPollTimeoutError(id, txInfo.status, txInfo.subStatus);
       }
       await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
       txInfo = await this.sdk.getTransactionById(id);

@@ -4,7 +4,7 @@
  * For tokens that support it natively (e.g. USDC).
  */
 
-import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE } from './TransferMechanism';
+import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE, settleResultFromError } from './TransferMechanism';
 import { ethers } from 'ethers';
 
 export class Eip3009Mechanism extends BaseMechanism {
@@ -145,11 +145,7 @@ export class Eip3009Mechanism extends BaseMechanism {
         blockNumber: result.blockNumber,
       };
     } catch (error) {
-      console.error('[eip-3009] Settlement error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return settleResultFromError(error, '[eip-3009]');
     }
   }
 }

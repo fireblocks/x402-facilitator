@@ -12,7 +12,7 @@
  *   3. If simulation succeeds, call redeemDelegations() for real
  */
 
-import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE } from './TransferMechanism';
+import { BaseMechanism, VerifyParams, VerifyResult, SettleParams, SettleResult, DEFAULT_SETTLE_SCOPE, settleResultFromError } from './TransferMechanism';
 import { FireblocksSettlementFactory } from '../services/fireblocksSettlementFactory';
 import { ethers } from 'ethers';
 
@@ -219,11 +219,7 @@ export class Erc7710Mechanism extends BaseMechanism {
         blockNumber: result.blockNumber,
       };
     } catch (error) {
-      console.error('[erc7710] Settlement error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return settleResultFromError(error, '[erc7710]');
     }
   }
 }
