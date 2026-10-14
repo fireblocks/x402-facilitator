@@ -641,9 +641,21 @@ export function createPaymentRoutes(deps: PaymentRoutesDeps): Router {
         });
       } catch (err) {
         if (err instanceof DuplicateAuthorizationError) {
+          // Enrich with the original row's outcome so a correctly-retrying
+          // client can reconcile instead of re-paying: a
+          // completed row hands back its transaction hash, a still-settling
+          // one hands back the fireblocksTxId to poll/reconcile against.
+          const original = await deps.payments.getByAuthorizationHash(scope, err.authorizationHash);
           res.status(409).json({
             error: X402ErrorCode.InvalidPayload,
             details: 'This authorization has already been processed',
+            ...(original
+              ? {
+                  status: original.status,
+                  ...(original.transactionHash ? { transaction: original.transactionHash } : {}),
+                  ...(original.fireblocksTxId ? { fireblocksTxId: original.fireblocksTxId } : {}),
+                }
+              : {}),
           });
           return;
         }

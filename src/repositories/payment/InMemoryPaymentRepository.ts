@@ -229,6 +229,16 @@ export class InMemoryPaymentRepository implements PaymentRepository {
     return false;
   }
 
+  async getByAuthorizationHash(scope: TenantScope, authorizationHash: string): Promise<Payment | undefined> {
+    for (const payment of this.payments.values()) {
+      if (!sameScope(payment, scope)) continue;
+      if (payment.authorizationHash === authorizationHash && payment.status !== 'failed') {
+        return payment;
+      }
+    }
+    return undefined;
+  }
+
   private patch(scope: TenantScope, paymentId: string, updates: Partial<Payment>): void {
     const current = this.payments.get(paymentId);
     if (!current || !sameScope(current, scope)) return;

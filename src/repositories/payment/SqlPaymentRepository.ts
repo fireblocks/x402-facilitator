@@ -417,6 +417,21 @@ export class SqlPaymentRepository implements PaymentRepository {
     return !!row;
   }
 
+  async getByAuthorizationHash(
+    scope: TenantScope,
+    authorizationHash: string,
+  ): Promise<Payment | undefined> {
+    const row = await this.db
+      .selectFrom('payments')
+      .selectAll()
+      .where('authorization_hash', '=', authorizationHash)
+      .where('status', '!=', 'failed')
+      .where('tenant_id', '=', scope.tenantId)
+      .where('configuration_id', '=', scope.configurationId)
+      .executeTakeFirst();
+    return row ? rowToDomain(row as unknown as PaymentsRow) : undefined;
+  }
+
   async close(): Promise<void> {
     if (this.ownsConnection) {
       await this.db.destroy();
